@@ -1,29 +1,12 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, StyleSheet, Text, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useFonts, Pacifico_400Regular } from '@expo-google-fonts/pacifico';
-import * as SplashScreen from 'expo-splash-screen';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import logoImg from '@/assets/images/logofitrack.png'; // depois podemos trocar por uma logo mais estilizada
 
 export default function HomeScreen() {
   const router = useRouter();
-
-  const [fontsLoaded] = useFonts({
-    Pacifico_400Regular,
-  });
-
-  useEffect(() => {
-    SplashScreen.preventAutoHideAsync();
-    if (fontsLoaded) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded]);
-
-  if (!fontsLoaded) {
-    return null;
-  }
 
   return (
     <LinearGradient colors={['#000', '#0A1A2F']} style={styles.container}>
