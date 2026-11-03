@@ -6,12 +6,12 @@
     "orientation": "portrait",
     "icon": "./assets/images/logofitrack.png",
     "scheme": "fittrack",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/fittracksplash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "resizeMode": "cover",
+      "backgroundColor": "#120600"
     },
     "ios": {
       "bundleIdentifier": "com.seupersonaltrack.fittrack",
@@ -21,7 +21,7 @@
       "package": "com.seupersonaltrack.fittrack",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/loginhofittrack.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#120600"
       },
       "edgeToEdgeEnabled": true
     },

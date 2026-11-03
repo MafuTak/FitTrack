@@ -2,11 +2,12 @@
 
 - [x] Arrumar edição de cadastro
 - Opção light/dark mode
-- Background próprio
-- Trocar Buttons por TouchableOpacity
+- [x] Background próprio (degradê laranja padronizado)
+- [x] Trocar Buttons por TouchableOpacity
 - Animações sutis com LayoutAnimation
 - [x] Barra de pesquisa de alunos (SearchBar)
 - [x] Ordem alfabética de alunos
+- [x] Padronização de design (tema, cards, inputs e botões)
 - Histórico de avaliação
 - Exportação de séries (Achar uma forma mais fácil)
 

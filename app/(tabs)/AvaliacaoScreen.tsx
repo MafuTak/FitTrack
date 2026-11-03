@@ -1,24 +1,37 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  useColorScheme,
   Alert,
-  FlatList,
-  TouchableOpacity,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+  StyleSheet,
+  Text,
+  View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
+import { Screen } from '@/components/Screen';
+import {
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Input,
+  ScreenTitle,
+  SectionTitle,
+} from '@/components/ui';
+import { Palette, Radius, Spacing } from '@/constants/theme';
+
 type Aluno = {
   id: string | number;
   nome: string;
+};
+
+const classificarIMC = (imc: number) => {
+  if (imc < 18.5) return 'Abaixo do peso';
+  if (imc < 25) return 'Peso normal';
+  if (imc < 30) return 'Sobrepeso';
+  return 'Obesidade';
 };
 
 export default function AvaliacaoScreen() {
@@ -36,11 +49,9 @@ export default function AvaliacaoScreen() {
   const [ombro, setOmbro] = useState('');
   const [gordura, setGordura] = useState('');
 
-  const isDark = useColorScheme() === 'dark';
   const router = useRouter();
   const { alunoId } = useLocalSearchParams<{ alunoId?: string }>();
 
-  // 🔹 Formatação
   const formatDecimal = (value: string) => {
     return value.replace(',', '.').replace(/[^0-9.]/g, '');
   };
@@ -80,7 +91,7 @@ export default function AvaliacaoScreen() {
   useFocusEffect(
     useCallback(() => {
       carregarAlunos();
-    }, [carregarAlunos])
+    }, [carregarAlunos]),
   );
 
   useEffect(() => {
@@ -94,7 +105,9 @@ export default function AvaliacaoScreen() {
       if (!alunoSelecionado) return;
 
       try {
-        const dados = await AsyncStorage.getItem(`@avaliacao_${alunoSelecionado.id}`);
+        const dados = await AsyncStorage.getItem(
+          `@avaliacao_${alunoSelecionado.id}`,
+        );
         if (dados) {
           const avaliacao = JSON.parse(dados);
           setPeso(avaliacao.peso || '');
@@ -159,7 +172,10 @@ export default function AvaliacaoScreen() {
     };
 
     try {
-      await AsyncStorage.setItem(`@avaliacao_${alunoSelecionado.id}`, JSON.stringify(avaliacao));
+      await AsyncStorage.setItem(
+        `@avaliacao_${alunoSelecionado.id}`,
+        JSON.stringify(avaliacao),
+      );
       Alert.alert('Sucesso', 'Avaliação salva com sucesso!');
       router.push('/ListaAlunos');
     } catch (error) {
@@ -168,173 +184,237 @@ export default function AvaliacaoScreen() {
     }
   };
 
-  const renderAlunoItem = ({ item }: { item: Aluno }) => {
-    const selecionado = alunoSelecionado?.id === item.id;
-    return (
-      <TouchableOpacity
-        style={[
-          styles.alunoItem,
-          selecionado && styles.alunoSelecionado,
-        ]}
-        onPress={() => setAlunoSelecionado(item)}
-      >
-        <Text style={{ color: selecionado ? '#fff' : isDark ? '#fff' : '#000' }}>
-          {item.nome}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
+  const imc = calcularIMC();
+  const imcNumero = parseFloat(imc);
+  const classificacao = imcNumero > 0 ? classificarIMC(imcNumero) : '';
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView keyboardShouldPersistTaps="handled">
-        <Text style={[styles.titulo, { color: isDark ? '#fff' : '#000' }]}>Avaliação Física</Text>
+    <Screen scroll>
+      <ScreenTitle
+        title="Avaliação Física"
+        subtitle="Acompanhe a evolução do seu aluno."
+      />
 
-        <Text style={[styles.label, { color: isDark ? '#fff' : '#000' }]}>Selecione o Aluno</Text>
-        <FlatList
-          data={alunos}
-          keyExtractor={item => item.id.toString()}
-          renderItem={renderAlunoItem}
+      <SectionTitle>Aluno</SectionTitle>
+
+      {alunos.length === 0 ? (
+        <>
+          <EmptyState
+            icon="user-plus"
+            title="Nenhum aluno cadastrado"
+            message="Cadastre um aluno para registrar a primeira avaliação."
+          />
+          <Button
+            title="Cadastrar aluno"
+            icon="user-plus"
+            onPress={() => router.push('/(tabs)/AlunosCadastro')}
+          />
+        </>
+      ) : (
+        <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={{ maxHeight: 50, marginBottom: 16 }}
+          contentContainerStyle={styles.chips}
+        >
+          {alunos.map((aluno) => (
+            <Chip
+              key={String(aluno.id)}
+              label={aluno.nome}
+              selected={alunoSelecionado?.id === aluno.id}
+              onPress={() => setAlunoSelecionado(aluno)}
+            />
+          ))}
+        </ScrollView>
+      )}
+
+      {alunos.length > 0 && !alunoSelecionado ? (
+        <EmptyState
+          icon="clipboard"
+          title="Selecione um aluno"
+          message="Escolha um aluno acima para preencher a avaliação."
         />
+      ) : null}
 
-        <Text style={[styles.subtitulo, { color: isDark ? '#fff' : '#000' }]}>
-          {alunoSelecionado ? `Avaliação de ${alunoSelecionado.nome}` : 'Nenhum aluno selecionado'}
-        </Text>
+      {alunoSelecionado ? (
+        <>
+          <Text style={styles.selectedName}>
+            Avaliando: {alunoSelecionado.nome}
+          </Text>
 
-        {/* Peso e Altura lado a lado */}
-        <View style={styles.row}>
-          <View style={styles.col}>
-            <Text style={styles.label}>Peso (kg)</Text>
-            <TextInput
-              style={styles.input}
-              value={peso}
-              onChangeText={t => setPeso(formatDecimal(t))}
-              keyboardType="numeric"
-              placeholder="Ex: 75.4"
-              placeholderTextColor={"#f0f0f0a8"}
-            />
-          </View>
-          <View style={styles.col}>
-            <Text style={styles.label}>Altura (m)</Text>
-            <TextInput
-              style={styles.input}
-              value={altura}
-              onChangeText={t => setAltura(formatDecimal(t))}
-              onBlur={normalizarAltura}
-              keyboardType="numeric"
-              placeholder="Ex: 1.70"
-              placeholderTextColor={"#f0f0f0a8"}
-            />
-          </View>
-        </View>
+          <Card>
+            <SectionTitle>Peso e altura</SectionTitle>
 
-        <Text style={[styles.label, { marginBottom: 12, color: isDark ? '#fff' : '#fff' }]}>IMC: {calcularIMC()}</Text>
+            <View style={styles.row}>
+              <View style={styles.col}>
+                <Input
+                  label="Peso (kg)"
+                  value={peso}
+                  onChangeText={(t) => setPeso(formatDecimal(t))}
+                  keyboardType="numeric"
+                  placeholder="Ex: 75.4"
+                />
+              </View>
+              <View style={styles.col}>
+                <Input
+                  label="Altura (m)"
+                  value={altura}
+                  onChangeText={(t) => setAltura(formatDecimal(t))}
+                  onBlur={normalizarAltura}
+                  keyboardType="numeric"
+                  placeholder="Ex: 1.70"
+                />
+              </View>
+            </View>
 
-        {/* Medidas em pares */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Medidas (cm)</Text>
-          <View style={styles.row}>
-            <View style={styles.col}>
-              <Text style={styles.label}>Braço</Text>
-              <TextInput style={styles.input} value={braco} onChangeText={t => setBraco(formatDecimal(t))} keyboardType="numeric" placeholderTextColor={"#f0f0f0a8"} />
+            <View style={styles.imcCard}>
+              <Text style={styles.imcLabel}>IMC</Text>
+              <Text style={styles.imcValue}>{imc || '--'}</Text>
+              {classificacao ? (
+                <Text style={styles.imcClass}>{classificacao}</Text>
+              ) : null}
             </View>
-            <View style={styles.col}>
-              <Text style={styles.label}>Cintura</Text>
-              <TextInput style={styles.input} value={cintura} onChangeText={t => setCintura(formatDecimal(t))} keyboardType="numeric" placeholderTextColor={"#f0f0f0a8"} />
-            </View>
-          </View>
+          </Card>
 
-          <View style={styles.row}>
-            <View style={styles.col}>
-              <Text style={styles.label}>Quadril</Text>
-              <TextInput style={styles.input} value={quadril} onChangeText={t => setQuadril(formatDecimal(t))} keyboardType="numeric" placeholderTextColor={"#f0f0f0a8"} />
-            </View>
-            <View style={styles.col}>
-              <Text style={styles.label}>Coxa</Text>
-              <TextInput style={styles.input} value={coxa} onChangeText={t => setCoxa(formatDecimal(t))} keyboardType="numeric" placeholderTextColor={"#f0f0f0a8"} />
-            </View>
-          </View>
+          <Card>
+            <SectionTitle>Medidas (cm)</SectionTitle>
 
-          <View style={styles.row}>
-            <View style={styles.col}>
-              <Text style={styles.label}>Panturrilha</Text>
-              <TextInput style={styles.input} value={panturrilha} onChangeText={t => setPanturrilha(formatDecimal(t))} keyboardType="numeric" placeholderTextColor={"#f0f0f0a8"} />
+            <View style={styles.row}>
+              <View style={styles.col}>
+                <Input
+                  label="Braço"
+                  value={braco}
+                  onChangeText={(t) => setBraco(formatDecimal(t))}
+                  keyboardType="numeric"
+                  placeholder="0.0"
+                />
+              </View>
+              <View style={styles.col}>
+                <Input
+                  label="Cintura"
+                  value={cintura}
+                  onChangeText={(t) => setCintura(formatDecimal(t))}
+                  keyboardType="numeric"
+                  placeholder="0.0"
+                />
+              </View>
             </View>
-            <View style={styles.col}>
-              <Text style={styles.label}>Tórax</Text>
-              <TextInput style={styles.input} value={torax} onChangeText={t => setTorax(formatDecimal(t))} keyboardType="numeric" placeholderTextColor={"#f0f0f0a8"} />
-            </View>
-          </View>
 
-          <View style={styles.row}>
-            <View style={styles.col}>
-              <Text style={styles.label}>Ombro</Text>
-              <TextInput style={styles.input} value={ombro} onChangeText={t => setOmbro(formatDecimal(t))} keyboardType="numeric" placeholderTextColor={"#f0f0f0a8"} />
+            <View style={styles.row}>
+              <View style={styles.col}>
+                <Input
+                  label="Quadril"
+                  value={quadril}
+                  onChangeText={(t) => setQuadril(formatDecimal(t))}
+                  keyboardType="numeric"
+                  placeholder="0.0"
+                />
+              </View>
+              <View style={styles.col}>
+                <Input
+                  label="Coxa"
+                  value={coxa}
+                  onChangeText={(t) => setCoxa(formatDecimal(t))}
+                  keyboardType="numeric"
+                  placeholder="0.0"
+                />
+              </View>
             </View>
-            <View style={styles.col}>
-              <Text style={styles.label}>% Gordura</Text>
-              <TextInput style={styles.input} value={gordura} onChangeText={t => setGordura(formatDecimal(t))} keyboardType="numeric" placeholderTextColor={"#f0f0f0a8"} />
-            </View>
-          </View>
-        </View>
 
-        <TouchableOpacity style={styles.botaoSalvar} onPress={salvar}>
-          <Text style={styles.textoBotao}>Salvar Avaliação</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            <View style={styles.row}>
+              <View style={styles.col}>
+                <Input
+                  label="Panturrilha"
+                  value={panturrilha}
+                  onChangeText={(t) => setPanturrilha(formatDecimal(t))}
+                  keyboardType="numeric"
+                  placeholder="0.0"
+                />
+              </View>
+              <View style={styles.col}>
+                <Input
+                  label="Tórax"
+                  value={torax}
+                  onChangeText={(t) => setTorax(formatDecimal(t))}
+                  keyboardType="numeric"
+                  placeholder="0.0"
+                />
+              </View>
+            </View>
+
+            <View style={styles.row}>
+              <View style={styles.col}>
+                <Input
+                  label="Ombro"
+                  value={ombro}
+                  onChangeText={(t) => setOmbro(formatDecimal(t))}
+                  keyboardType="numeric"
+                  placeholder="0.0"
+                />
+              </View>
+              <View style={styles.col}>
+                <Input
+                  label="% Gordura"
+                  value={gordura}
+                  onChangeText={(t) => setGordura(formatDecimal(t))}
+                  keyboardType="numeric"
+                  placeholder="0.0"
+                />
+              </View>
+            </View>
+          </Card>
+
+          <Button
+            title="Salvar avaliação"
+            icon="check"
+            onPress={salvar}
+          />
+        </>
+      ) : null}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  titulo: { fontSize: 22, fontWeight: 'bold', marginBottom: 16 },
-  subtitulo: { fontSize: 16, fontWeight: '600', marginBottom: 12 },
-  label: { fontWeight: 'bold', marginBottom: 4, color: "#f0f0f0" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 10,
-    borderRadius: 6,
-    marginBottom: 12,
-    color: "#f0f0f0",
-    backgroundColor: "#222",
+  chips: {
+    paddingBottom: Spacing.md,
   },
-  card: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    backgroundColor: "#111",
-    borderWidth: 1,
-    borderColor: "#333",
+  selectedName: {
+    color: Palette.orangeLight,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: Spacing.md,
   },
   row: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: Spacing.md,
   },
-  col: { flex: 1 },
-  sectionTitle: { fontSize: 16, fontWeight: '600', marginBottom: 8, color: "#f0f0f0" },
-  alunoItem: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginRight: 8,
-    backgroundColor: "#dddddd36",
+  col: {
+    flex: 1,
   },
-  alunoSelecionado: { backgroundColor: "#3399FF" },
-  botaoSalvar: {
-    backgroundColor: '#28a745',
-    padding: 14,
-    borderRadius: 8,
+  imcCard: {
     alignItems: 'center',
-    marginTop: 10,
+    backgroundColor: 'rgba(255,122,24,0.10)',
+    borderWidth: 1,
+    borderColor: Palette.border,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.md,
   },
-  textoBotao: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  imcLabel: {
+    color: Palette.textMuted,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  imcValue: {
+    color: Palette.orangeLight,
+    fontSize: 30,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  imcClass: {
+    color: Palette.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
 });

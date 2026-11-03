@@ -1,16 +1,19 @@
 import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  StyleSheet,
-  useColorScheme,
-  Alert,
-  TouchableOpacity,
-  TextInput,
-} from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+
+import { Screen } from '@/components/Screen';
+import {
+  Button,
+  Card,
+  Chip,
+  EmptyState,
+  Input,
+  ScreenTitle,
+  SectionTitle,
+} from '@/components/ui';
+import { Palette, Radius, Spacing } from '@/constants/theme';
 
 type Exercicio = {
   exercicio: string;
@@ -29,19 +32,20 @@ type Aluno = {
 };
 
 export default function VerSerieScreen() {
-  const isDark = useColorScheme() === 'dark';
   const [todasSeries, setTodasSeries] = useState<Record<string, Treino[]>>({});
   const [alunosMap, setAlunosMap] = useState<Record<string, string>>({});
   const [selecionado, setSelecionado] = useState<string | null>(null);
 
-  // Estados de edição
-  const [editando, setEditando] = useState<{ alunoId: string; index: number } | null>(null);
+  const [editando, setEditando] = useState<{
+    alunoId: string;
+    index: number;
+  } | null>(null);
   const [edicaoTreino, setEdicaoTreino] = useState<Treino | null>(null);
 
   const carregarDados = useCallback(async () => {
     try {
       const keys = await AsyncStorage.getAllKeys();
-      const serieKeys = keys.filter(k => k.startsWith('@treinos_'));
+      const serieKeys = keys.filter((k) => k.startsWith('@treinos_'));
       const dadosSerie = await AsyncStorage.multiGet(serieKeys);
       const grouped: Record<string, Treino[]> = {};
 
@@ -61,13 +65,12 @@ export default function VerSerieScreen() {
         }
       });
 
-      // 🔹 Carregar todos os alunos de @alunos
       const alunosRaw = await AsyncStorage.getItem('@alunos');
-      let map: Record<string, string> = {};
+      const map: Record<string, string> = {};
 
       if (alunosRaw) {
         const listaAlunos: Aluno[] = JSON.parse(alunosRaw);
-        listaAlunos.forEach(a => {
+        listaAlunos.forEach((a) => {
           map[a.id.toString()] = a.nome;
         });
       }
@@ -82,14 +85,15 @@ export default function VerSerieScreen() {
   useFocusEffect(
     useCallback(() => {
       carregarDados();
-    }, [carregarDados])
+    }, [carregarDados]),
   );
 
-  // 🔹 Excluir todas as séries do aluno (mas manter aluno)
   const excluirTodasSeriesDoAluno = async (alunoId: string) => {
     Alert.alert(
-      'Excluir Séries',
-      `Deseja excluir todas as séries do aluno ${alunosMap[alunoId] || 'Aluno'}?`,
+      'Excluir séries',
+      `Deseja excluir todas as séries do aluno ${
+        alunosMap[alunoId] || 'Aluno'
+      }?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -99,7 +103,7 @@ export default function VerSerieScreen() {
             try {
               await AsyncStorage.removeItem(`@treinos_${alunoId}`);
 
-              setTodasSeries(prev => {
+              setTodasSeries((prev) => {
                 const novo = { ...prev };
                 delete novo[alunoId];
                 return novo;
@@ -107,54 +111,58 @@ export default function VerSerieScreen() {
 
               if (selecionado === alunoId) setSelecionado(null);
 
-              Alert.alert('Sucesso', 'Todas as séries do aluno foram excluídas.');
+              Alert.alert(
+                'Sucesso',
+                'Todas as séries do aluno foram excluídas.',
+              );
             } catch (e) {
               Alert.alert('Erro', 'Não foi possível excluir as séries.');
               console.error(e);
             }
           },
         },
-      ]
+      ],
     );
   };
 
-  // 🔹 Excluir apenas uma série individual
   const excluirSerie = (alunoId: string, index: number) => {
-    Alert.alert(
-      'Excluir Série',
-      'Deseja realmente excluir esta série?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const novasSeries = [...todasSeries[alunoId]];
-              novasSeries.splice(index, 1);
+    Alert.alert('Excluir série', 'Deseja realmente excluir esta série?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Excluir',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const novasSeries = [...todasSeries[alunoId]];
+            novasSeries.splice(index, 1);
 
-              await AsyncStorage.setItem(`@treinos_${alunoId}`, JSON.stringify(novasSeries));
+            await AsyncStorage.setItem(
+              `@treinos_${alunoId}`,
+              JSON.stringify(novasSeries),
+            );
 
-              setTodasSeries(prev => ({ ...prev, [alunoId]: novasSeries }));
+            setTodasSeries((prev) => ({ ...prev, [alunoId]: novasSeries }));
 
-              Alert.alert('Sucesso', 'Série excluída com sucesso!');
-            } catch (e) {
-              Alert.alert('Erro', 'Não foi possível excluir a série.');
-              console.error(e);
-            }
-          },
+            Alert.alert('Sucesso', 'Série excluída com sucesso!');
+          } catch (e) {
+            Alert.alert('Erro', 'Não foi possível excluir a série.');
+            console.error(e);
+          }
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  // 🔹 Iniciar edição de série
   const iniciarEdicao = (alunoId: string, index: number) => {
     setEditando({ alunoId, index });
     setEdicaoTreino(todasSeries[alunoId][index]);
   };
 
-  // 🔹 Salvar série editada
+  const cancelarEdicao = () => {
+    setEditando(null);
+    setEdicaoTreino(null);
+  };
+
   const salvarEdicao = async () => {
     if (!editando || !edicaoTreino) return;
 
@@ -162,27 +170,35 @@ export default function VerSerieScreen() {
     const novasSeries = [...todasSeries[alunoId]];
     novasSeries[index] = edicaoTreino;
 
-    await AsyncStorage.setItem(`@treinos_${alunoId}`, JSON.stringify(novasSeries));
+    await AsyncStorage.setItem(
+      `@treinos_${alunoId}`,
+      JSON.stringify(novasSeries),
+    );
 
-    setTodasSeries(prev => ({ ...prev, [alunoId]: novasSeries }));
+    setTodasSeries((prev) => ({ ...prev, [alunoId]: novasSeries }));
     setEditando(null);
     setEdicaoTreino(null);
   };
 
-  // 🔹 Adicionar exercício na edição
   const adicionarExercicio = () => {
-    setEdicaoTreino(prev => {
+    setEdicaoTreino((prev) => {
       if (!prev) return null;
       return {
         ...prev,
-        exercicios: [...prev.exercicios, { exercicio: '', series: '', repeticoes: '' }],
+        exercicios: [
+          ...prev.exercicios,
+          { exercicio: '', series: '', repeticoes: '' },
+        ],
       };
     });
   };
 
-  // 🔹 Atualizar campos do exercício
-  const atualizarCampoExercicio = (index: number, campo: keyof Exercicio, valor: string) => {
-    setEdicaoTreino(prev => {
+  const atualizarCampoExercicio = (
+    index: number,
+    campo: keyof Exercicio,
+    valor: string,
+  ) => {
+    setEdicaoTreino((prev) => {
       if (!prev) return null;
       const novos = [...prev.exercicios];
       novos[index] = { ...novos[index], [campo]: valor };
@@ -190,9 +206,8 @@ export default function VerSerieScreen() {
     });
   };
 
-  // 🔹 Remover exercício
   const removerExercicio = (index: number) => {
-    setEdicaoTreino(prev => {
+    setEdicaoTreino((prev) => {
       if (!prev) return null;
       const novos = prev.exercicios.filter((_, i) => i !== index);
       return { ...prev, exercicios: novos };
@@ -202,170 +217,300 @@ export default function VerSerieScreen() {
   const renderSeries = () => {
     if (!selecionado) return null;
     const lista = todasSeries[selecionado] || [];
+
     if (lista.length === 0) {
-      return <Text style={{ color: isDark ? '#fff' : '#000' }}>Nenhum treino encontrado.</Text>;
+      return (
+        <EmptyState
+          icon="list"
+          title="Nenhum treino encontrado"
+          message="Monte uma série para este aluno na aba Criar."
+        />
+      );
     }
+
     return lista.map((treino, idx) => (
-      <View key={idx} style={[styles.serieItem, { backgroundColor: isDark ? '#222' : '#eee' }]}>
+      <Card key={`${treino.nome}-${idx}`}>
         {editando?.alunoId === selecionado && editando.index === idx ? (
           <>
-            <TextInput
-              style={styles.inputEdicao}
+            <SectionTitle>Editar série</SectionTitle>
+
+            <Input
+              label="Nome da série"
               value={edicaoTreino?.nome || ''}
-              onChangeText={(t) => setEdicaoTreino(prev => prev ? { ...prev, nome: t } : null)}
+              onChangeText={(t) =>
+                setEdicaoTreino((prev) =>
+                  prev ? { ...prev, nome: t } : null,
+                )
+              }
               placeholder="Nome da série"
-              placeholderTextColor="#888"
             />
 
             {edicaoTreino?.exercicios.map((ex, i) => (
               <View key={i} style={styles.cardExercicio}>
-                <TextInput
-                  style={styles.inputEdicao}
+                <Input
+                  label="Exercício"
                   value={ex.exercicio}
-                  onChangeText={(t) => atualizarCampoExercicio(i, 'exercicio', t)}
+                  onChangeText={(t) =>
+                    atualizarCampoExercicio(i, 'exercicio', t)
+                  }
                   placeholder="Exercício"
-                  placeholderTextColor="#888"
                 />
-                <View style={{ flexDirection: 'row', gap: 6 }}>
-                  <TextInput
-                    style={[styles.inputEdicao, { flex: 1 }]}
-                    value={ex.series}
-                    onChangeText={(t) => atualizarCampoExercicio(i, 'series', t)}
-                    placeholder="Séries"
-                    placeholderTextColor="#888"
-                    keyboardType="numeric"
-                  />
-                  <TextInput
-                    style={[styles.inputEdicao, { flex: 1 }]}
-                    value={ex.repeticoes}
-                    onChangeText={(t) => atualizarCampoExercicio(i, 'repeticoes', t)}
-                    placeholder="Reps"
-                    placeholderTextColor="#888"
-                    keyboardType="numeric"
-                  />
+
+                <View style={styles.row}>
+                  <View style={styles.col}>
+                    <Input
+                      label="Séries"
+                      value={ex.series}
+                      onChangeText={(t) =>
+                        atualizarCampoExercicio(i, 'series', t)
+                      }
+                      placeholder="Séries"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.col}>
+                    <Input
+                      label="Repetições"
+                      value={ex.repeticoes}
+                      onChangeText={(t) =>
+                        atualizarCampoExercicio(i, 'repeticoes', t)
+                      }
+                      placeholder="Reps"
+                      keyboardType="numeric"
+                    />
+                  </View>
                 </View>
-                <TouchableOpacity onPress={() => removerExercicio(i)}>
-                  <Text style={{ color: 'red', marginTop: 4 }}>❌ Remover</Text>
-                </TouchableOpacity>
+
+                <Button
+                  title="Remover exercício"
+                  variant="danger"
+                  small
+                  icon="times"
+                  onPress={() => removerExercicio(i)}
+                />
               </View>
             ))}
 
-            <TouchableOpacity onPress={adicionarExercicio} style={styles.botaoAdicionar}>
-              <Text style={{ color: '#fff' }}>➕ Adicionar Exercício</Text>
-            </TouchableOpacity>
+            <Button
+              title="Adicionar exercício"
+              variant="secondary"
+              small
+              icon="plus"
+              onPress={adicionarExercicio}
+            />
 
-            <TouchableOpacity onPress={salvarEdicao} style={styles.botaoSalvar}>
-              <Text style={{ color: '#fff' }}>Salvar Alterações</Text>
-            </TouchableOpacity>
+            <View style={styles.actionsRow}>
+              <Button
+                title="Salvar"
+                small
+                icon="check"
+                onPress={salvarEdicao}
+                style={styles.actionButton}
+              />
+              <Button
+                title="Cancelar"
+                small
+                variant="ghost"
+                onPress={cancelarEdicao}
+                style={styles.actionButton}
+              />
+            </View>
           </>
         ) : (
           <>
-            <Text style={{ color: isDark ? '#fff' : '#000', fontWeight: 'bold', fontSize: 16 }}>
-              {treino.nome}
-            </Text>
+            <View style={styles.serieHeader}>
+              <Text style={styles.serieTitulo}>{treino.nome}</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>
+                  {treino.exercicios.length}
+                </Text>
+              </View>
+            </View>
+
             {treino.exercicios.map((ex, i) => (
-              <Text key={i} style={{ color: isDark ? '#ccc' : '#333', marginLeft: 10, marginBottom: 4 }}>
-                • {ex.exercicio} — {ex.series} x {ex.repeticoes}
-              </Text>
+              <View key={i} style={styles.exercicioRow}>
+                <View style={styles.dot} />
+                <Text style={styles.exercicioNome}>{ex.exercicio}</Text>
+                <Text style={styles.exercicioMeta}>
+                  {ex.series} x {ex.repeticoes}
+                </Text>
+              </View>
             ))}
-            <View style={{ flexDirection: 'row', marginTop: 6 }}>
-              <TouchableOpacity onPress={() => iniciarEdicao(selecionado!, idx)} style={{ marginRight: 16 }}>
-                <Text style={{ color: '#007AFF' }}>Editar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => excluirSerie(selecionado!, idx)}>
-                <Text style={{ color: 'red' }}>Excluir</Text>
-              </TouchableOpacity>
+
+            <View style={styles.actionsRow}>
+              <Button
+                title="Editar"
+                variant="secondary"
+                small
+                icon="pencil"
+                onPress={() => iniciarEdicao(selecionado!, idx)}
+                style={styles.actionButton}
+              />
+              <Button
+                title="Excluir"
+                variant="danger"
+                small
+                icon="trash"
+                onPress={() => excluirSerie(selecionado!, idx)}
+                style={styles.actionButton}
+              />
             </View>
           </>
         )}
-      </View>
+      </Card>
     ));
   };
 
+  const alunosComSerie = Object.keys(todasSeries);
+
   return (
-    <ScrollView style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}>
-      <Text style={[styles.titulo, { color: isDark ? '#fff' : '#000' }]}>Ver Séries dos Alunos</Text>
+    <Screen scroll>
+      <ScreenTitle
+        title="Séries"
+        subtitle="Treinos montados para cada aluno."
+      />
 
-      {Object.keys(todasSeries).length === 0 ? (
-        <Text style={{ color: isDark ? '#aaa' : '#555' }}>Nenhuma série cadastrada.</Text>
+      {alunosComSerie.length === 0 ? (
+        <EmptyState
+          icon="list"
+          title="Nenhuma série cadastrada"
+          message="Crie a primeira série na aba Criar."
+        />
       ) : (
-        Object.keys(todasSeries).map(alunoId => (
-          <TouchableOpacity
-            key={alunoId}
-            onPress={() => setSelecionado(selecionado === alunoId ? null : alunoId)}
-            onLongPress={() => excluirTodasSeriesDoAluno(alunoId)}
-            style={[
-              styles.botaoAluno,
-              {
-                backgroundColor:
-                  selecionado === alunoId
-                    ? isDark
-                      ? '#007AFF'
-                      : '#3399FF'
-                    : isDark
-                    ? '#333'
-                    : '#ccc',
-              },
-            ]}
-          >
-            <Text style={{ color: isDark ? '#fff' : '#000' }}>
-              {alunosMap[alunoId] || `Aluno ${alunoId}`}
-            </Text>
-          </TouchableOpacity>
-        ))
-      )}
-
-      {selecionado && (
         <>
-          <Text style={[styles.titulo, { color: isDark ? '#fff' : '#000', marginTop: 20 }]}>
-            Séries de {alunosMap[selecionado] || `Aluno ${selecionado}`}
+          <SectionTitle>Alunos com séries</SectionTitle>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chips}
+          >
+            {alunosComSerie.map((alunoId) => (
+              <Chip
+                key={alunoId}
+                label={alunosMap[alunoId] || `Aluno ${alunoId}`}
+                selected={selecionado === alunoId}
+                onPress={() =>
+                  setSelecionado(selecionado === alunoId ? null : alunoId)
+                }
+                onLongPress={() => excluirTodasSeriesDoAluno(alunoId)}
+              />
+            ))}
+          </ScrollView>
+
+          <Text style={styles.hint}>
+            Segure o nome do aluno para excluir todas as séries dele.
           </Text>
-          {renderSeries()}
+
+          {selecionado ? (
+            <>
+              <Text style={styles.selectedName}>
+                Séries de{' '}
+                {alunosMap[selecionado] || `Aluno ${selecionado}`}
+              </Text>
+              {renderSeries()}
+            </>
+          ) : (
+            <EmptyState
+              icon="list"
+              title="Selecione um aluno"
+              message="Escolha um aluno acima para ver as séries."
+            />
+          )}
         </>
       )}
-    </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  titulo: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  serieItem: { padding: 12, borderRadius: 6, marginBottom: 10 },
-  botaoAluno: {
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
-    alignItems: 'center',
+  chips: {
+    paddingBottom: Spacing.md,
   },
-  inputEdicao: {
+  hint: {
+    color: Palette.textFaint,
+    fontSize: 11,
+    marginBottom: Spacing.lg,
+  },
+  selectedName: {
+    color: Palette.orangeLight,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: Spacing.md,
+  },
+  serieHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  serieTitulo: {
+    color: Palette.text,
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+  },
+  countBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,122,24,0.16)',
     borderWidth: 1,
-    borderColor: '#aaa',
-    borderRadius: 6,
-    padding: 8,
-    marginBottom: 6,
-    color: '#000',
-    backgroundColor: '#fff',
+    borderColor: Palette.border,
+    paddingHorizontal: 6,
+  },
+  countText: {
+    color: Palette.orangeLight,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  exercicioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.05)',
+  },
+  dot: {
+    width: 5,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: Palette.orange,
+    marginRight: Spacing.sm,
+  },
+  exercicioNome: {
+    flex: 1,
+    color: Palette.textMuted,
+    fontSize: 14,
+  },
+  exercicioMeta: {
+    color: Palette.textFaint,
+    fontSize: 12,
+    fontWeight: '600',
   },
   cardExercicio: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 10,
-    backgroundColor: '#f9f9f9',
+    borderColor: Palette.borderSoft,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
   },
-  botaoAdicionar: {
-    backgroundColor: '#007AFF',
-    padding: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginTop: 10,
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.md,
   },
-  botaoSalvar: {
-    backgroundColor: '#28a745',
-    padding: 10,
-    borderRadius: 6,
-    alignItems: 'center',
-    marginTop: 10,
+  col: {
+    flex: 1,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  actionButton: {
+    flex: 1,
   },
 });

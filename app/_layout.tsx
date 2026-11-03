@@ -1,18 +1,16 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { Pacifico_400Regular } from '@expo-google-fonts/pacifico';
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { Palette } from '@/constants/theme';
 
-export {
-  ErrorBoundary,
-} from 'expo-router';
+export { ErrorBoundary } from 'expo-router';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -20,9 +18,21 @@ export const unstable_settings = {
 
 SplashScreen.preventAutoHideAsync();
 
+const navigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: Palette.orange,
+    background: Palette.backgroundBottom,
+    card: Palette.tabBar,
+    text: Palette.text,
+    border: Palette.borderSoft,
+    notification: Palette.orange,
+  },
+};
+
 export default function RootLayout() {
   const [loaded, error] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
     Pacifico_400Regular,
     ...FontAwesome.font,
   });
@@ -41,27 +51,17 @@ export default function RootLayout() {
     return null;
   }
 
-  return <RootLayoutNav />;
-}
-
-function RootLayoutNav() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <LinearGradient
-        colors={['#000', '#0A1A2F']}
-        style={{ flex: 1 }}
+    <ThemeProvider value={navigationTheme}>
+      <StatusBar style="light" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: Palette.backgroundBottom },
+        }}
       >
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: 'transparent' },
-          }}
-        >
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
-      </LinearGradient>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      </Stack>
     </ThemeProvider>
   );
 }

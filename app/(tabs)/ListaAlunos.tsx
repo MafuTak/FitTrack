@@ -1,19 +1,28 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  TextInput,
-  StyleSheet,
-  useColorScheme,
   Alert,
+  FlatList,
   LayoutAnimation,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { LinearGradient } from 'expo-linear-gradient';
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+
+import { Screen } from '@/components/Screen';
+import {
+  Button,
+  EmptyState,
+  InfoRow,
+  Input,
+  ScreenTitle,
+} from '@/components/ui';
+import { Palette, Radius, Spacing } from '@/constants/theme';
 
 type Avaliacao = {
   data?: string;
@@ -41,13 +50,25 @@ type AlunoComAvaliacao = {
   avaliacao?: Avaliacao;
 };
 
+const iniciais = (nome: string) => {
+  const partes = nome.trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return '?';
+  if (partes.length === 1) return partes[0].slice(0, 2).toUpperCase();
+  return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
+};
+
 export default function ListaAlunos() {
   const [alunos, setAlunos] = useState<AlunoComAvaliacao[]>([]);
-  const [alunoSelecionadoId, setAlunoSelecionadoId] = useState<string | number | null>(null);
-  const [editandoAlunoId, setEditandoAlunoId] = useState<string | number | null>(null);
-  const [edicaoDados, setEdicaoDados] = useState<Partial<AlunoComAvaliacao>>({});
+  const [alunoSelecionadoId, setAlunoSelecionadoId] = useState<
+    string | number | null
+  >(null);
+  const [editandoAlunoId, setEditandoAlunoId] = useState<
+    string | number | null
+  >(null);
+  const [edicaoDados, setEdicaoDados] = useState<Partial<AlunoComAvaliacao>>(
+    {},
+  );
   const [busca, setBusca] = useState('');
-  const isDark = useColorScheme() === 'dark';
   const router = useRouter();
 
   const carregarAlunosComAvaliacao = useCallback(async () => {
@@ -57,8 +78,12 @@ export default function ListaAlunos() {
 
       const listaComAvaliacao: AlunoComAvaliacao[] = await Promise.all(
         lista.map(async (aluno) => {
-          const avaliacaoDados = await AsyncStorage.getItem(`@avaliacao_${aluno.id}`);
-          const avaliacao = avaliacaoDados ? JSON.parse(avaliacaoDados) : undefined;
+          const avaliacaoDados = await AsyncStorage.getItem(
+            `@avaliacao_${aluno.id}`,
+          );
+          const avaliacao = avaliacaoDados
+            ? JSON.parse(avaliacaoDados)
+            : undefined;
           return { ...aluno, avaliacao };
         }),
       );
@@ -72,7 +97,7 @@ export default function ListaAlunos() {
   useFocusEffect(
     useCallback(() => {
       carregarAlunosComAvaliacao();
-    }, [carregarAlunosComAvaliacao])
+    }, [carregarAlunosComAvaliacao]),
   );
 
   const alunosFiltrados = useMemo(() => {
@@ -96,9 +121,15 @@ export default function ListaAlunos() {
   const salvarEdicao = async () => {
     if (!editandoAlunoId) return;
 
-    const obrigatorios = ['nome', 'idade', 'telefone', 'objetivo', 'experiencia'] as const;
+    const obrigatorios = [
+      'nome',
+      'idade',
+      'telefone',
+      'objetivo',
+      'experiencia',
+    ] as const;
     const temCampoVazio = obrigatorios.some(
-      (campo) => !String(edicaoDados[campo] ?? '').trim()
+      (campo) => !String(edicaoDados[campo] ?? '').trim(),
     );
 
     if (temCampoVazio) {
@@ -108,7 +139,7 @@ export default function ListaAlunos() {
 
     try {
       const novosAlunos = alunos.map((a) =>
-        a.id === editandoAlunoId ? { ...a, ...edicaoDados } : a
+        a.id === editandoAlunoId ? { ...a, ...edicaoDados } : a,
       );
 
       // A avaliação tem chave própria (@avaliacao_<id>) e não deve ser
@@ -150,14 +181,23 @@ export default function ListaAlunos() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const novaLista = alunos.filter((aluno) => aluno.id !== id);
-              setAlunos(novaLista);
-              await AsyncStorage.setItem('@alunos', JSON.stringify(novaLista));
+              const restantes = alunos.filter((aluno) => aluno.id !== id);
+              const semAvaliacao = restantes.map((aluno) => {
+                const copia = { ...aluno };
+                delete copia.avaliacao;
+                return copia;
+              });
+
+              setAlunos(restantes);
+              await AsyncStorage.setItem(
+                '@alunos',
+                JSON.stringify(semAvaliacao),
+              );
               await AsyncStorage.removeItem(`@avaliacao_${id}`);
 
               const todasChaves = await AsyncStorage.getAllKeys();
               const chavesSerieDoAluno = todasChaves.filter((key) =>
-                key.startsWith(`@treinos_${id}`)
+                key.startsWith(`@treinos_${id}`),
               );
               if (chavesSerieDoAluno.length > 0) {
                 await AsyncStorage.multiRemove(chavesSerieDoAluno);
@@ -171,145 +211,189 @@ export default function ListaAlunos() {
           },
         },
       ],
-      { cancelable: true }
+      { cancelable: true },
     );
   };
 
   const renderItem = ({ item }: { item: AlunoComAvaliacao }) => {
     const selecionado = alunoSelecionadoId === item.id;
     const editando = editandoAlunoId === item.id;
+    const avaliacao = item.avaliacao;
 
     return (
       <TouchableOpacity
-        style={[
-          styles.item,
-          {
-            backgroundColor: isDark
-              ? 'rgba(255,255,255,0.08)' // card translúcido no dark
-              : 'rgba(0,0,0,0.05)',     // card translúcido no light
-          },
-        ]}
+        activeOpacity={0.9}
+        style={styles.card}
         onPress={() => alternarDetalhes(item.id)}
         onLongPress={() => removerAluno(item.id)}
       >
-        <Text style={[styles.nome, { color: isDark ? '#fff' : '#000' }]}>{item.nome}</Text>
+        <View style={styles.cardHeader}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{iniciais(item.nome)}</Text>
+          </View>
+
+          <View style={styles.cardHeaderText}>
+            <Text style={styles.nome}>{item.nome}</Text>
+            <Text style={styles.cardMeta}>
+              {item.objetivo ?? 'Sem objetivo'} ·{' '}
+              {item.experiencia ?? 'Sem nível'}
+            </Text>
+          </View>
+
+          <FontAwesome
+            name={selecionado ? 'chevron-up' : 'chevron-down'}
+            size={13}
+            color={Palette.textFaint}
+          />
+        </View>
 
         {selecionado && (
           <View style={styles.detalhes}>
             {editando ? (
               <>
-                <TextInput
-                  style={styles.input}
+                <Input
+                  label="Nome"
                   value={edicaoDados.nome ?? ''}
-                  onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, nome: t }))}
+                  onChangeText={(t) =>
+                    setEdicaoDados((prev) => ({ ...prev, nome: t }))
+                  }
                   placeholder="Nome"
-                  placeholderTextColor="#888"
                 />
-                <TextInput
-                  style={styles.input}
-                  value={edicaoDados.idade ?? ''}
-                  onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, idade: t }))}
-                  placeholder="Idade"
-                  placeholderTextColor="#888"
-                  keyboardType="numeric"
-                />
-                <TextInput
-                  style={styles.input}
-                  value={edicaoDados.telefone ?? ''}
-                  onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, telefone: t }))}
-                  placeholder="Telefone"
-                  placeholderTextColor="#888"
-                />
-                <TextInput
-                  style={styles.input}
+                <View style={styles.row}>
+                  <View style={styles.col}>
+                    <Input
+                      label="Idade"
+                      value={edicaoDados.idade ?? ''}
+                      onChangeText={(t) =>
+                        setEdicaoDados((prev) => ({ ...prev, idade: t }))
+                      }
+                      placeholder="Idade"
+                      keyboardType="numeric"
+                    />
+                  </View>
+                  <View style={styles.col}>
+                    <Input
+                      label="Telefone"
+                      value={edicaoDados.telefone ?? ''}
+                      onChangeText={(t) =>
+                        setEdicaoDados((prev) => ({ ...prev, telefone: t }))
+                      }
+                      placeholder="Telefone"
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                </View>
+                <Input
+                  label="Objetivo"
                   value={edicaoDados.objetivo ?? ''}
-                  onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, objetivo: t }))}
+                  onChangeText={(t) =>
+                    setEdicaoDados((prev) => ({ ...prev, objetivo: t }))
+                  }
                   placeholder="Objetivo"
-                  placeholderTextColor="#888"
                 />
-                <TextInput
-                  style={styles.input}
+                <Input
+                  label="Experiência"
                   value={edicaoDados.experiencia ?? ''}
-                  onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, experiencia: t }))}
+                  onChangeText={(t) =>
+                    setEdicaoDados((prev) => ({ ...prev, experiencia: t }))
+                  }
                   placeholder="Experiência"
-                  placeholderTextColor="#888"
                 />
-                <TextInput
-                  style={styles.input}
+                <Input
+                  label="Observações"
                   value={edicaoDados.observacoes ?? ''}
-                  onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, observacoes: t }))}
+                  onChangeText={(t) =>
+                    setEdicaoDados((prev) => ({ ...prev, observacoes: t }))
+                  }
                   placeholder="Observações"
-                  placeholderTextColor="#888"
                 />
 
-                <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                  <TouchableOpacity
-                    style={[styles.botaoAcao, { backgroundColor: '#28a745' }]}
+                <View style={styles.actionsRow}>
+                  <Button
+                    title="Salvar"
+                    small
+                    icon="check"
                     onPress={salvarEdicao}
-                  >
-                    <Text style={styles.textoBotao}>Salvar</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.botaoAcao, { backgroundColor: '#666' }]}
+                    style={styles.actionButton}
+                  />
+                  <Button
+                    title="Cancelar"
+                    small
+                    variant="ghost"
                     onPress={cancelarEdicao}
-                  >
-                    <Text style={styles.textoBotao}>Cancelar</Text>
-                  </TouchableOpacity>
+                    style={styles.actionButton}
+                  />
                 </View>
               </>
             ) : (
               <>
-                <Text style={[styles.detalhe, { color: isDark ? '#ccc' : '#555' }]}>
-                  Idade: {item.idade ?? '-'}
-                </Text>
-                <Text style={[styles.detalhe, { color: isDark ? '#ccc' : '#555' }]}>
-                  Telefone: {item.telefone ?? '-'}
-                </Text>
-                <Text style={[styles.detalhe, { color: isDark ? '#ccc' : '#555' }]}>
-                  Objetivo: {item.objetivo ?? '-'}
-                </Text>
-                <Text style={[styles.detalhe, { color: isDark ? '#ccc' : '#555' }]}>
-                  Experiência: {item.experiencia ?? '-'}
-                </Text>
-                <Text style={[styles.detalhe, { color: isDark ? '#ccc' : '#555' }]}>
-                  Observações: {item.observacoes || 'Nenhuma'}
-                </Text>
+                <InfoRow label="Idade" value={item.idade ?? '-'} />
+                <InfoRow label="Telefone" value={item.telefone ?? '-'} />
+                <InfoRow label="Objetivo" value={item.objetivo ?? '-'} />
+                <InfoRow label="Experiência" value={item.experiencia ?? '-'} />
+                <InfoRow
+                  label="Observações"
+                  value={item.observacoes || 'Nenhuma'}
+                />
 
-                {item.avaliacao ? (
-                  <View style={{ marginTop: 8 }}>
-                    <Text style={[styles.detalhe, { color: isDark ? '#ccc' : '#555' }]}>
-                      📅 Data:{' '}
-                      {item.avaliacao.data
-                        ? new Date(item.avaliacao.data).toLocaleDateString()
-                        : '-'}
-                    </Text>
-                    <Text style={[styles.detalhe, { color: isDark ? '#ccc' : '#555' }]}>
-                      Peso: {item.avaliacao.peso ?? '-'} kg | Altura: {item.avaliacao.altura ?? '-'} m
-                    </Text>
-                    <Text style={[styles.detalhe, { color: isDark ? '#ccc' : '#555' }]}>
-                      IMC: {item.avaliacao.imc ?? '-'}
-                    </Text>
+                {avaliacao ? (
+                  <View style={styles.evalCard}>
+                    <View style={styles.evalHeader}>
+                      <FontAwesome
+                        name="heartbeat"
+                        size={13}
+                        color={Palette.orangeLight}
+                      />
+                      <Text style={styles.evalTitle}>Última avaliação</Text>
+                      <Text style={styles.evalDate}>
+                        📅{' '}
+                        {avaliacao.data
+                          ? new Date(avaliacao.data).toLocaleDateString('pt-BR')
+                          : '-'}
+                      </Text>
+                    </View>
+
+                    <View style={styles.evalStats}>
+                      <View style={styles.evalStat}>
+                        <Text style={styles.evalValue}>
+                          {avaliacao.peso ?? '-'}
+                        </Text>
+                        <Text style={styles.evalLabel}>Peso (kg)</Text>
+                      </View>
+                      <View style={styles.evalStat}>
+                        <Text style={styles.evalValue}>
+                          {avaliacao.altura ?? '-'}
+                        </Text>
+                        <Text style={styles.evalLabel}>Altura (m)</Text>
+                      </View>
+                      <View style={styles.evalStat}>
+                        <Text style={styles.evalValue}>
+                          {avaliacao.imc ?? '-'}
+                        </Text>
+                        <Text style={styles.evalLabel}>IMC</Text>
+                      </View>
+                    </View>
                   </View>
                 ) : (
-                  <Text style={{ fontStyle: 'italic', color: isDark ? '#666' : '#999', marginTop: 4 }}>
-                    Sem avaliação
-                  </Text>
+                  <Text style={styles.semAvaliacao}>Sem avaliação</Text>
                 )}
 
-                <View style={{ flexDirection: 'row', marginTop: 8 }}>
-                  <TouchableOpacity
-                    style={[styles.botaoAcao, { backgroundColor: '#3399FF' }]}
+                <View style={styles.actionsRow}>
+                  <Button
+                    title="Editar"
+                    small
+                    variant="secondary"
+                    icon="pencil"
                     onPress={() => iniciarEdicao(item)}
-                  >
-                    <Text style={styles.textoBotao}>Editar</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={[styles.botaoAcao, { backgroundColor: '#28a745' }]}
+                    style={styles.actionButton}
+                  />
+                  <Button
+                    title="Nova avaliação"
+                    small
+                    icon="heartbeat"
                     onPress={() => novaAvaliacao(item.id)}
-                  >
-                    <Text style={styles.textoBotao}>Nova Avaliação</Text>
-                  </TouchableOpacity>
+                    style={styles.actionButton}
+                  />
                 </View>
               </>
             )}
@@ -320,93 +404,221 @@ export default function ListaAlunos() {
   };
 
   return (
-    <LinearGradient
-      colors={['#000', '#0A1A2F']} // 👈 seu gradiente
-      style={styles.background}
-    >
-      <Text style={[styles.titulo, { color: isDark ? '#fff' : '#000' }]}>
-        Lista de Alunos
-      </Text>
-      <TextInput
-        style={styles.busca}
-        value={busca}
-        onChangeText={setBusca}
-        placeholder="Buscar aluno..."
-        placeholderTextColor="#aaa"
-      />
+    <Screen contentContainerStyle={styles.screen}>
+      <View style={styles.headerArea}>
+        <ScreenTitle
+          title="Alunos"
+          subtitle={`${alunosFiltrados.length} ${
+            alunosFiltrados.length === 1
+              ? 'aluno encontrado'
+              : 'alunos encontrados'
+          }`}
+        />
+
+        <View style={styles.searchWrap}>
+          <FontAwesome
+            name="search"
+            size={14}
+            color={Palette.textFaint}
+            style={styles.searchIcon}
+          />
+          <TextInput
+            style={styles.searchInput}
+            value={busca}
+            onChangeText={setBusca}
+            placeholder="Buscar aluno..."
+            placeholderTextColor={Palette.textFaint}
+          />
+          {busca ? (
+            <TouchableOpacity onPress={() => setBusca('')}>
+              <FontAwesome
+                name="times-circle"
+                size={16}
+                color={Palette.textFaint}
+              />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <Text style={styles.hint}>
+          Toque para expandir · segure para remover.
+        </Text>
+      </View>
+
       <FlatList
         data={alunosFiltrados}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
+        style={styles.list}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <Text style={{ color: isDark ? '#aaa' : '#555' }}>
-            {busca
-              ? 'Nenhum aluno encontrado para essa busca.'
-              : 'Nenhum aluno encontrado.'}
-          </Text>
+          <EmptyState
+            icon="users"
+            title={busca ? 'Nenhum aluno encontrado' : 'Nenhum aluno cadastrado'}
+            message={
+              busca
+                ? 'Tente outro nome ou limpe a busca.'
+                : 'Cadastre seu primeiro aluno para começar.'
+            }
+          />
         }
       />
-    </LinearGradient>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    padding: 16,
+  screen: {
+    paddingTop: Spacing.md,
   },
-  titulo: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 10,
+  headerArea: {
+    paddingHorizontal: Spacing.xl,
   },
-  busca: {
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Palette.input,
     borderWidth: 1,
-    borderColor: '#555',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 10,
-    color: '#fff',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderColor: Palette.borderSoft,
+    borderRadius: Radius.md,
+    paddingHorizontal: Spacing.md,
   },
-  item: {
-    padding: 12,
-    borderRadius: 8,
-    marginVertical: 6,
+  searchIcon: {
+    marginRight: Spacing.sm,
   },
-  nome: {
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  detalhes: {
-    marginTop: 8,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#999',
-  },
-  detalhe: {
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#aaa',
-    borderRadius: 6,
-    padding: 8,
-    marginBottom: 6,
-    color: '#000',
-    backgroundColor: '#fff',
-  },
-  botaoAcao: {
+  searchInput: {
     flex: 1,
-    padding: 10,
-    borderRadius: 6,
-    marginRight: 8,
+    color: Palette.text,
+    fontSize: 15,
+    paddingVertical: 12,
+  },
+  hint: {
+    color: Palette.textFaint,
+    fontSize: 11,
+    marginTop: Spacing.sm,
+  },
+  listContent: {
+    paddingHorizontal: Spacing.xl,
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.xxl + Spacing.md,
+    flexGrow: 1,
+  },
+  list: {
+    flex: 1,
+  },
+  card: {
+    backgroundColor: Palette.surface,
+    borderWidth: 1,
+    borderColor: Palette.borderSoft,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  cardHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
   },
-  textoBotao: {
-    color: '#fff',
-    fontWeight: 'bold',
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,122,24,0.14)',
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  avatarText: {
+    color: Palette.orangeLight,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  cardHeaderText: {
+    flex: 1,
+    marginHorizontal: Spacing.md,
+  },
+  nome: {
+    color: Palette.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  cardMeta: {
+    color: Palette.textFaint,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  detalhes: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: Palette.borderSoft,
+  },
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  col: {
+    flex: 1,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  evalCard: {
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+    borderRadius: Radius.md,
+    backgroundColor: 'rgba(255,122,24,0.08)',
+    borderWidth: 1,
+    borderColor: Palette.border,
+  },
+  evalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  evalTitle: {
+    color: Palette.orangeLight,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+    marginLeft: 6,
+    flex: 1,
+  },
+  evalDate: {
+    color: Palette.textMuted,
+    fontSize: 11,
+  },
+  evalStats: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  evalStat: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: Radius.sm,
+    paddingVertical: Spacing.sm,
+  },
+  evalValue: {
+    color: Palette.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  evalLabel: {
+    color: Palette.textFaint,
+    fontSize: 10,
+    marginTop: 2,
+  },
+  semAvaliacao: {
+    color: Palette.textFaint,
+    fontStyle: 'italic',
+    fontSize: 13,
+    marginTop: Spacing.md,
   },
 });

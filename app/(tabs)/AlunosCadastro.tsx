@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
-import {
-  View, Text, TextInput, StyleSheet,
-  useColorScheme, Alert, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform
-} from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+
+import { Screen } from '@/components/Screen';
+import {
+  Button,
+  Card,
+  Input,
+  ScreenTitle,
+  SectionTitle,
+} from '@/components/ui';
+import { Palette, Radius, Spacing } from '@/constants/theme';
+
+const ITEM_COLOR = '#1A1A1A';
 
 export default function CadastroScreen() {
   const [nome, setNome] = useState('');
@@ -16,13 +24,13 @@ export default function CadastroScreen() {
   const [experiencia, setExperiencia] = useState('');
   const [observacoes, setObservacoes] = useState('');
 
-  const isDark = useColorScheme() === 'dark';
   const router = useRouter();
 
   const formatarTelefone = (texto: string) => {
     const cleaned = texto.replace(/\D/g, '');
     if (cleaned.length <= 2) return `(${cleaned})`;
-    if (cleaned.length <= 7) return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
+    if (cleaned.length <= 7)
+      return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2)}`;
     return `(${cleaned.slice(0, 2)}) ${cleaned.slice(2, 7)}-${cleaned.slice(7, 11)}`;
   };
 
@@ -62,144 +70,156 @@ export default function CadastroScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={['#000', '#0A1A2F']}
-      style={styles.background}
-    >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "android" ? "padding" : undefined}
-      >
-        <ScrollView keyboardShouldPersistTaps="handled">
-          <Text style={[styles.titulo, { color: '#fff' }]}>Cadastro de Aluno</Text>
+    <Screen scroll>
+      <ScreenTitle
+        title="Cadastro de Aluno"
+        subtitle="Preencha os dados para começar o acompanhamento."
+      />
 
-          <Text style={styles.label}>Nome *</Text>
-          <TextInput
-            style={styles.input}
-            value={nome}
-            onChangeText={setNome}
-            placeholder="Nome completo"
-            placeholderTextColor={"#f0f0f0a8"}
-          />
+      <Card>
+        <SectionTitle>Dados pessoais</SectionTitle>
 
-          <Text style={styles.label}>Idade *</Text>
-          <TextInput
-            style={styles.input}
-            value={idade}
-            onChangeText={setIdade}
-            keyboardType="numeric"
-            placeholder="Ex: 25"
-            placeholderTextColor={"#f0f0f0a8"}
-          />
+        <Input
+          label="Nome *"
+          value={nome}
+          onChangeText={setNome}
+          placeholder="Nome completo"
+          autoCapitalize="words"
+        />
 
-          <Text style={styles.label}>Telefone *</Text>
-          <TextInput
-            style={styles.input}
-            value={telefone}
-            onChangeText={(t) => setTelefone(formatarTelefone(t))}
-            keyboardType="phone-pad"
-            placeholder="(99) 99999-9999"
-            placeholderTextColor={"#f0f0f0a8"}
-          />
-
-          <Text style={styles.label}>Objetivo *</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={objetivo}
-              onValueChange={setObjetivo}
-              dropdownIconColor="#f0f0f0"
-              style={styles.picker}
-            >
-              <Picker.Item label="Selecione o objetivo" value="" />
-              <Picker.Item label="Emagrecimento" value="Emagrecimento" />
-              <Picker.Item label="Hipertrofia" value="Hipertrofia" />
-              <Picker.Item label="Condicionamento" value="Condicionamento" />
-            </Picker>
+        <View style={styles.row}>
+          <View style={styles.col}>
+            <Input
+              label="Idade *"
+              value={idade}
+              onChangeText={setIdade}
+              keyboardType="numeric"
+              placeholder="Ex: 25"
+            />
           </View>
-
-          <Text style={styles.label}>Experiência *</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={experiencia}
-              onValueChange={setExperiencia}
-              dropdownIconColor="#f0f0f0"
-              style={styles.picker}
-            >
-              <Picker.Item label="Selecione o nível" value="" />
-              <Picker.Item label="Iniciante" value="Iniciante" />
-              <Picker.Item label="Intermediário" value="Intermediário" />
-              <Picker.Item label="Avançado" value="Avançado" />
-            </Picker>
+          <View style={styles.col}>
+            <Input
+              label="Telefone *"
+              value={telefone}
+              onChangeText={(t) => setTelefone(formatarTelefone(t))}
+              keyboardType="phone-pad"
+              placeholder="(99) 99999-9999"
+            />
           </View>
+        </View>
+      </Card>
 
-          <Text style={styles.label}>Observações (opcional)</Text>
-          <TextInput
-            style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
-            value={observacoes}
-            onChangeText={setObservacoes}
-            placeholder="Restrição, lesão, etc."
-            placeholderTextColor={"#f0f0f0a8"}
-            multiline
-          />
+      <Card>
+        <SectionTitle>Perfil</SectionTitle>
 
-          <TouchableOpacity style={styles.botao} onPress={salvarAluno}>
-            <Text style={styles.textoBotao}>Cadastrar Aluno</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </LinearGradient>
+        <Text style={styles.label}>Objetivo *</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={objetivo}
+            onValueChange={setObjetivo}
+            dropdownIconColor={Palette.orangeLight}
+            style={styles.picker}
+          >
+            <Picker.Item
+              label="Selecione o objetivo"
+              value=""
+              color={ITEM_COLOR}
+            />
+            <Picker.Item
+              label="Emagrecimento"
+              value="Emagrecimento"
+              color={ITEM_COLOR}
+            />
+            <Picker.Item
+              label="Hipertrofia"
+              value="Hipertrofia"
+              color={ITEM_COLOR}
+            />
+            <Picker.Item
+              label="Condicionamento"
+              value="Condicionamento"
+              color={ITEM_COLOR}
+            />
+          </Picker>
+        </View>
+
+        <Text style={styles.label}>Experiência *</Text>
+        <View style={styles.pickerContainer}>
+          <Picker
+            selectedValue={experiencia}
+            onValueChange={setExperiencia}
+            dropdownIconColor={Palette.orangeLight}
+            style={styles.picker}
+          >
+            <Picker.Item
+              label="Selecione o nível"
+              value=""
+              color={ITEM_COLOR}
+            />
+            <Picker.Item
+              label="Iniciante"
+              value="Iniciante"
+              color={ITEM_COLOR}
+            />
+            <Picker.Item
+              label="Intermediário"
+              value="Intermediário"
+              color={ITEM_COLOR}
+            />
+            <Picker.Item
+              label="Avançado"
+              value="Avançado"
+              color={ITEM_COLOR}
+            />
+          </Picker>
+        </View>
+      </Card>
+
+      <Card>
+        <SectionTitle>Observações</SectionTitle>
+        <Input
+          label="Observações (opcional)"
+          value={observacoes}
+          onChangeText={setObservacoes}
+          placeholder="Restrição, lesão, etc."
+          multiline
+          style={styles.textArea}
+        />
+      </Card>
+
+      <Button title="Cadastrar aluno" icon="check" onPress={salvarAluno} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  col: {
     flex: 1,
   },
-  container: { 
-    flex: 1, 
-    padding: 16,
-  },
-  titulo: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 20,
-    textAlign: "center",
-  },
   label: {
-    fontWeight: "bold",
+    color: Palette.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
     marginBottom: 6,
-    color: "#f0f0f0",
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: "#333",
-    padding: 10,
-    marginBottom: 12,
-    borderRadius: 6,
-    color: "#f0f0f0",
-    backgroundColor: "rgba(255,255,255,0.05)",
   },
   pickerContainer: {
+    backgroundColor: Palette.input,
     borderWidth: 1,
-    borderColor: "#333",
-    borderRadius: 6,
-    marginBottom: 12,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    borderColor: Palette.borderSoft,
+    borderRadius: Radius.md,
+    marginBottom: Spacing.md,
+    overflow: 'hidden',
   },
   picker: {
-    color: "#f0f0f0",
+    color: Palette.text,
+    backgroundColor: 'transparent',
   },
-  botao: {
-    backgroundColor: "#3399FF",
-    padding: 14,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  textoBotao: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 16,
+  textArea: {
+    height: 96,
+    textAlignVertical: 'top',
   },
 });
-
