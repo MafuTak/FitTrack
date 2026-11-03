@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -38,11 +38,7 @@ export default function VerSerieScreen() {
   const [editando, setEditando] = useState<{ alunoId: string; index: number } | null>(null);
   const [edicaoTreino, setEdicaoTreino] = useState<Treino | null>(null);
 
-  useFocusEffect(() => {
-    carregarDados();
-  });
-
-  const carregarDados = async () => {
+  const carregarDados = useCallback(async () => {
     try {
       const keys = await AsyncStorage.getAllKeys();
       const serieKeys = keys.filter(k => k.startsWith('@treinos_'));
@@ -81,7 +77,13 @@ export default function VerSerieScreen() {
     } catch (e) {
       console.error('Erro ao carregar dados:', e);
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarDados();
+    }, [carregarDados])
+  );
 
   // 🔹 Excluir todas as séries do aluno (mas manter aluno)
   const excluirTodasSeriesDoAluno = async (alunoId: string) => {

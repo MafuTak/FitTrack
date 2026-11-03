@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import { 
   View, 
   Text, 
@@ -41,18 +41,21 @@ export default function CriarSerieScreen() {
 
   const router = useRouter();
 
-  useFocusEffect(() => {
-    const carregarAlunos = async () => {
-      try {
-        const dados = await AsyncStorage.getItem("@alunos");
-        const lista: Aluno[] = dados ? JSON.parse(dados) : [];
-        setAlunos(lista);
-      } catch (error) {
-        console.error("Erro ao carregar alunos:", error);
-      }
-    };
-    carregarAlunos();
-  });
+  const carregarAlunos = useCallback(async () => {
+    try {
+      const dados = await AsyncStorage.getItem("@alunos");
+      const lista: Aluno[] = dados ? JSON.parse(dados) : [];
+      setAlunos(lista);
+    } catch (error) {
+      console.error("Erro ao carregar alunos:", error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarAlunos();
+    }, [carregarAlunos])
+  );
 
   const adicionarExercicio = () => {
     if (!nomeTreino || !exercicio || !series || !repeticoes) {

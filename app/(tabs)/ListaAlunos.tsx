@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -46,14 +46,11 @@ export default function ListaAlunos() {
   const [alunoSelecionadoId, setAlunoSelecionadoId] = useState<string | number | null>(null);
   const [editandoAlunoId, setEditandoAlunoId] = useState<string | number | null>(null);
   const [edicaoDados, setEdicaoDados] = useState<Partial<AlunoComAvaliacao>>({});
+  const [busca, setBusca] = useState('');
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
 
-  useFocusEffect(() => {
-    carregarAlunosComAvaliacao();
-  });
-
-  const carregarAlunosComAvaliacao = async () => {
+  const carregarAlunosComAvaliacao = useCallback(async () => {
     try {
       const dados = await AsyncStorage.getItem('@alunos');
       const lista: AlunoComAvaliacao[] = dados ? JSON.parse(dados) : [];
@@ -70,7 +67,20 @@ export default function ListaAlunos() {
     } catch (error) {
       console.error('Erro ao carregar alunos e avaliações:', error);
     }
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarAlunosComAvaliacao();
+    }, [carregarAlunosComAvaliacao])
+  );
+
+  const alunosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLowerCase();
+    return [...alunos]
+      .filter((aluno) => aluno.nome.toLowerCase().includes(termo))
+      .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  }, [alunos, busca]);
 
   const alternarDetalhes = (id: string | number) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -86,18 +96,43 @@ export default function ListaAlunos() {
   const salvarEdicao = async () => {
     if (!editandoAlunoId) return;
 
+    const obrigatorios = ['nome', 'idade', 'telefone', 'objetivo', 'experiencia'] as const;
+    const temCampoVazio = obrigatorios.some(
+      (campo) => !String(edicaoDados[campo] ?? '').trim()
+    );
+
+    if (temCampoVazio) {
+      Alert.alert('Erro', 'Preencha todos os campos obrigatórios!');
+      return;
+    }
+
     try {
       const novosAlunos = alunos.map((a) =>
         a.id === editandoAlunoId ? { ...a, ...edicaoDados } : a
       );
+
+      // A avaliação tem chave própria (@avaliacao_<id>) e não deve ser
+      // gravada dentro de @alunos.
+      const alunosParaSalvar = novosAlunos.map((aluno) => {
+        const copia = { ...aluno };
+        delete copia.avaliacao;
+        return copia;
+      });
+
       setAlunos(novosAlunos);
-      await AsyncStorage.setItem('@alunos', JSON.stringify(novosAlunos));
+      await AsyncStorage.setItem('@alunos', JSON.stringify(alunosParaSalvar));
       setEditandoAlunoId(null);
+      setEdicaoDados({});
       Alert.alert('Sucesso', 'Dados do aluno atualizados!');
     } catch (error) {
       console.error('Erro ao salvar edição:', error);
       Alert.alert('Erro', 'Não foi possível atualizar os dados.');
     }
+  };
+
+  const cancelarEdicao = () => {
+    setEditandoAlunoId(null);
+    setEdicaoDados({});
   };
 
   const novaAvaliacao = (alunoId: string | number) => {
@@ -165,48 +200,62 @@ export default function ListaAlunos() {
               <>
                 <TextInput
                   style={styles.input}
-                  value={edicaoDados.nome}
+                  value={edicaoDados.nome ?? ''}
                   onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, nome: t }))}
                   placeholder="Nome"
+                  placeholderTextColor="#888"
                 />
                 <TextInput
                   style={styles.input}
-                  value={edicaoDados.idade}
+                  value={edicaoDados.idade ?? ''}
                   onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, idade: t }))}
                   placeholder="Idade"
+                  placeholderTextColor="#888"
                   keyboardType="numeric"
                 />
                 <TextInput
                   style={styles.input}
-                  value={edicaoDados.telefone}
+                  value={edicaoDados.telefone ?? ''}
                   onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, telefone: t }))}
                   placeholder="Telefone"
+                  placeholderTextColor="#888"
                 />
                 <TextInput
                   style={styles.input}
-                  value={edicaoDados.objetivo}
+                  value={edicaoDados.objetivo ?? ''}
                   onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, objetivo: t }))}
                   placeholder="Objetivo"
+                  placeholderTextColor="#888"
                 />
                 <TextInput
                   style={styles.input}
-                  value={edicaoDados.experiencia}
+                  value={edicaoDados.experiencia ?? ''}
                   onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, experiencia: t }))}
                   placeholder="Experiência"
+                  placeholderTextColor="#888"
                 />
                 <TextInput
                   style={styles.input}
-                  value={edicaoDados.observacoes}
+                  value={edicaoDados.observacoes ?? ''}
                   onChangeText={(t) => setEdicaoDados((prev) => ({ ...prev, observacoes: t }))}
                   placeholder="Observações"
+                  placeholderTextColor="#888"
                 />
 
-                <TouchableOpacity
-                  style={[styles.botaoAcao, { backgroundColor: '#28a745' }]}
-                  onPress={salvarEdicao}
-                >
-                  <Text style={styles.textoBotao}>Salvar</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                  <TouchableOpacity
+                    style={[styles.botaoAcao, { backgroundColor: '#28a745' }]}
+                    onPress={salvarEdicao}
+                  >
+                    <Text style={styles.textoBotao}>Salvar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.botaoAcao, { backgroundColor: '#666' }]}
+                    onPress={cancelarEdicao}
+                  >
+                    <Text style={styles.textoBotao}>Cancelar</Text>
+                  </TouchableOpacity>
+                </View>
               </>
             ) : (
               <>
@@ -278,13 +327,22 @@ export default function ListaAlunos() {
       <Text style={[styles.titulo, { color: isDark ? '#fff' : '#000' }]}>
         Lista de Alunos
       </Text>
+      <TextInput
+        style={styles.busca}
+        value={busca}
+        onChangeText={setBusca}
+        placeholder="Buscar aluno..."
+        placeholderTextColor="#aaa"
+      />
       <FlatList
-        data={alunos}
+        data={alunosFiltrados}
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         ListEmptyComponent={
           <Text style={{ color: isDark ? '#aaa' : '#555' }}>
-            Nenhum aluno encontrado.
+            {busca
+              ? 'Nenhum aluno encontrado para essa busca.'
+              : 'Nenhum aluno encontrado.'}
           </Text>
         }
       />
@@ -301,6 +359,16 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 10,
+  },
+  busca: {
+    borderWidth: 1,
+    borderColor: '#555',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 10,
+    color: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   item: {
     padding: 12,

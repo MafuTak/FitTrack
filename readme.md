@@ -1,12 +1,12 @@
 # Coisas a fazer
 
-- Arrumar edição de cadastro
+- [x] Arrumar edição de cadastro
 - Opção light/dark mode
 - Background próprio
 - Trocar Buttons por TouchableOpacity
 - Animações sutis com LayoutAnimation
-- Barra de pesquisa de alunos (SearchBar)
-- Ordem alfabética de alunos
+- [x] Barra de pesquisa de alunos (SearchBar)
+- [x] Ordem alfabética de alunos
 - Histórico de avaliação
 - Exportação de séries (Achar uma forma mais fácil)
 

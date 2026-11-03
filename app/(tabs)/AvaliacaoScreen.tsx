@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 
 type Aluno = {
@@ -38,40 +38,56 @@ export default function AvaliacaoScreen() {
 
   const isDark = useColorScheme() === 'dark';
   const router = useRouter();
+  const { alunoId } = useLocalSearchParams<{ alunoId?: string }>();
 
   // 🔹 Formatação
   const formatDecimal = (value: string) => {
     return value.replace(',', '.').replace(/[^0-9.]/g, '');
   };
 
-  const formatAltura = (value: string) => {
-    const onlyNums = value.replace(/[^\d]/g, '');
-    if (!onlyNums) return '';
-    const num = parseFloat(onlyNums) / 100;
-    return num.toFixed(2);
+  const obterAlturaMetros = () => {
+    const valor = parseFloat(altura);
+    if (!valor || valor <= 0) return 0;
+    return valor > 3 ? valor / 100 : valor;
+  };
+
+  const normalizarAltura = () => {
+    const metros = obterAlturaMetros();
+    if (metros > 0) {
+      setAltura(metros.toFixed(2));
+    }
   };
 
   const calcularIMC = () => {
     const p = parseFloat(peso);
-    const a = parseFloat(altura);
+    const a = obterAlturaMetros();
     if (p > 0 && a > 0) {
       return (p / (a * a)).toFixed(2);
     }
     return '';
   };
 
-  useFocusEffect(() => {
-    const carregarAlunos = async () => {
-      try {
-        const dados = await AsyncStorage.getItem('@alunos');
-        const lista: Aluno[] = dados ? JSON.parse(dados) : [];
-        setAlunos(lista);
-      } catch (error) {
-        console.error('Erro ao carregar alunos:', error);
-      }
-    };
-    carregarAlunos();
-  });
+  const carregarAlunos = useCallback(async () => {
+    try {
+      const dados = await AsyncStorage.getItem('@alunos');
+      const lista: Aluno[] = dados ? JSON.parse(dados) : [];
+      setAlunos(lista);
+    } catch (error) {
+      console.error('Erro ao carregar alunos:', error);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      carregarAlunos();
+    }, [carregarAlunos])
+  );
+
+  useEffect(() => {
+    if (!alunoId) return;
+    const encontrado = alunos.find((a) => String(a.id) === String(alunoId));
+    if (encontrado) setAlunoSelecionado(encontrado);
+  }, [alunoId, alunos]);
 
   useEffect(() => {
     const carregarAvaliacao = async () => {
@@ -120,10 +136,17 @@ export default function AvaliacaoScreen() {
       return;
     }
 
+    // Grava sempre em metros (ex: "1.70"), mesmo que o usuário digite 170.
+    const alturaMetros = obterAlturaMetros();
+    if (!alturaMetros) {
+      Alert.alert('Erro', 'Informe uma altura válida (ex: 1.70)');
+      return;
+    }
+
     const avaliacao = {
       data: new Date().toISOString(),
       peso,
-      altura,
+      altura: alturaMetros.toFixed(2),
       imc: calcularIMC(),
       braco,
       cintura,
@@ -202,7 +225,8 @@ export default function AvaliacaoScreen() {
             <TextInput
               style={styles.input}
               value={altura}
-              onChangeText={t => setAltura(formatAltura(t))}
+              onChangeText={t => setAltura(formatDecimal(t))}
+              onBlur={normalizarAltura}
               keyboardType="numeric"
               placeholder="Ex: 1.70"
               placeholderTextColor={"#f0f0f0a8"}
